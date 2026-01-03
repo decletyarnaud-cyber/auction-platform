@@ -1,11 +1,9 @@
 name: Update Auction Data
 
 on:
-  # Trigger via external cron service (cron-job.org)
   repository_dispatch:
     types: [update-data]
 
-  # Manual trigger from GitHub UI
   workflow_dispatch:
     inputs:
       region:
@@ -18,9 +16,11 @@ on:
           - paris
           - marseille
 
-  # GitHub scheduled trigger - Every Sunday at 6:00 AM UTC
   schedule:
     - cron: '0 6 * * 0'
+
+permissions:
+  contents: write
 
 jobs:
   update-auction-data:
@@ -30,8 +30,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -45,25 +43,14 @@ jobs:
           pip install httpx beautifulsoup4 lxml
 
       - name: Set up database
-        run: |
-          # Ensure data directory exists
-          mkdir -p data
-
-          # If database doesn't exist in repo, create from scratch
-          if [ ! -f "data/auctions_unified.db" ]; then
-            echo "Database not found, will create new one during scrape"
-          fi
+        run: mkdir -p data
 
       - name: Run scrapers
         run: |
           cd apis/immo-api
-
-          # Install API dependencies if requirements.txt exists
           if [ -f "requirements.txt" ]; then
             pip install -r requirements.txt
           fi
-
-          # Run the scraper coordinator
           python -c "
           import sys
           sys.path.insert(0, '.')
@@ -71,20 +58,15 @@ jobs:
               from app.scrapers.coordinator import ScraperCoordinator
               coordinator = ScraperCoordinator()
               coordinator.run_all()
-          except ImportError as e:
-              print(f'Scraper import error: {e}')
-              print('Skipping scraper, using existing data...')
           except Exception as e:
               print(f'Scraper error: {e}')
-              print('Continuing with existing data...')
+              print('Using existing data...')
           "
         continue-on-error: true
 
       - name: Export to static JSON
         run: |
-          # Determine region from input or default to all
           REGION="${{ github.event.inputs.region || 'all' }}"
-
           if [ "$REGION" = "all" ]; then
             python scripts/export-static-data.py
           else
@@ -97,10 +79,8 @@ jobs:
           git add apps/*/public/data/
           if git diff --staged --quiet; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
-            echo "No changes detected in auction data"
           else
             echo "has_changes=true" >> $GITHUB_OUTPUT
-            echo "Changes detected in auction data"
           fi
 
       - name: Commit and push changes
@@ -108,37 +88,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Get stats for commit message
           PARIS_COUNT=$(jq -r '.total // 0' apps/immo-paris/public/data/auctions.json 2>/dev/null || echo "0")
           MARSEILLE_COUNT=$(jq -r '.total // 0' apps/immo-marseille/public/data/auctions.json 2>/dev/null || echo "0")
-
-          git commit -m "chore: update auction data
-
-          - Paris: ${PARIS_COUNT} auctions
-          - Marseille: ${MARSEILLE_COUNT} auctions
-
-          Generated: $(date -u +"%Y-%m-%d %H:%M UTC")
-
-          [skip ci]"
-
+          git commit -m "chore: update auction data - Paris: ${PARIS_COUNT}, Marseille: ${MARSEILLE_COUNT} [skip ci]"
           git push
-
-      - name: Summary
-        run: |
-          echo "## Auction Data Update Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          if [ -f "apps/immo-paris/public/data/metadata.json" ]; then
-            echo "### Paris" >> $GITHUB_STEP_SUMMARY
-            echo '```json' >> $GITHUB_STEP_SUMMARY
-            cat apps/immo-paris/public/data/metadata.json >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
-
-          if [ -f "apps/immo-marseille/public/data/metadata.json" ]; then
-            echo "### Marseille" >> $GITHUB_STEP_SUMMARY
-            echo '```json' >> $GITHUB_STEP_SUMMARY
-            cat apps/immo-marseille/public/data/metadata.json >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
