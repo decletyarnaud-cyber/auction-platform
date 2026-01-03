@@ -141,13 +141,18 @@ export default function PropertyDetailPage() {
   const [expandedSource, setExpandedSource] = useState<string | null>("dvf");
   const [activeTab, setActiveTab] = useState<"overview" | "analysis" | "documents">("overview");
 
-  // Fetch multi-source analysis (only in API mode)
+  // Load analysis data (from pre-computed static data or API)
   useEffect(() => {
-    // Skip analysis fetch in static mode
-    if (process.env.NEXT_PUBLIC_STATIC_MODE === "true") {
+    // In static mode, use pre-computed analysis from property data
+    if (IS_STATIC_MODE) {
+      const staticAnalysis = (propertyData as any)?.analysis;
+      if (staticAnalysis) {
+        setAnalysisData(staticAnalysis as MultiSourceAnalysis);
+      }
       return;
     }
 
+    // In API mode, fetch from server
     async function fetchAnalysis() {
       setIsLoadingAnalysis(true);
       try {
@@ -165,7 +170,7 @@ export default function PropertyDetailPage() {
     if (propertyId) {
       fetchAnalysis();
     }
-  }, [propertyId]);
+  }, [propertyId, propertyData]);
 
   if (isLoading) {
     return (
@@ -295,19 +300,17 @@ Cordialement`
         >
           Apercu
         </button>
-        {/* Hide analysis tab in static mode - requires API */}
-        {!IS_STATIC_MODE && (
-          <button
-            onClick={() => setActiveTab("analysis")}
-            className={`px-4 py-2 font-medium text-sm border-b-2 -mb-px transition-colors ${
-              activeTab === "analysis"
-                ? "text-primary-600 border-primary-600"
-                : "text-gray-500 border-transparent hover:text-gray-700"
-            }`}
-          >
-            Analyse de prix
-          </button>
-        )}
+        {/* Analysis tab - show if we have analysis data (API or pre-computed) */}
+        <button
+          onClick={() => setActiveTab("analysis")}
+          className={`px-4 py-2 font-medium text-sm border-b-2 -mb-px transition-colors ${
+            activeTab === "analysis"
+              ? "text-primary-600 border-primary-600"
+              : "text-gray-500 border-transparent hover:text-gray-700"
+          }`}
+        >
+          Analyse de prix
+        </button>
         <button
           onClick={() => setActiveTab("documents")}
           className={`px-4 py-2 font-medium text-sm border-b-2 -mb-px transition-colors ${
@@ -553,8 +556,8 @@ Cordialement`
               </div>
             )}
 
-            {/* Quick analysis summary - only in API mode */}
-            {!IS_STATIC_MODE && combined && combined.discount_percent != null && combined.discount_percent > 0 && (
+            {/* Quick analysis summary */}
+            {combined && combined.discount_percent != null && combined.discount_percent > 0 && (
               <div className={`rounded-xl p-6 border ${
                 combined.discount_percent >= 30
                   ? "bg-green-50 border-green-200"
@@ -599,8 +602,8 @@ Cordialement`
         </div>
       )}
 
-      {/* Analysis Tab - only in API mode */}
-      {!IS_STATIC_MODE && activeTab === "analysis" && (
+      {/* Analysis Tab */}
+      {activeTab === "analysis" && (
         <div className="space-y-6">
           {isLoadingAnalysis ? (
             <div className="bg-white rounded-xl p-8 text-center">
