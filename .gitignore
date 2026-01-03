@@ -54,3 +54,4 @@ venv/
 # Misc
 *.tsbuildinfo
 next-env.d.ts
+.vercel
