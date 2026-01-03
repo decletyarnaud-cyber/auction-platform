@@ -1,0 +1,23 @@
+{
+  "name": "auction-platform",
+  "private": true,
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "type-check": "turbo type-check",
+    "clean": "turbo clean && rm -rf node_modules",
+    "dev:immo-paris": "turbo dev --filter=immo-paris",
+    "dev:immo-marseille": "turbo dev --filter=immo-marseille",
+    "dev:mallorca": "turbo dev --filter=mallorca",
+    "dev:alcopa": "turbo dev --filter=alcopa"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.3.3"
+  },
+  "packageManager": "pnpm@9.15.1",
+  "engines": {
+    "node": ">=18"
+  }
+}
