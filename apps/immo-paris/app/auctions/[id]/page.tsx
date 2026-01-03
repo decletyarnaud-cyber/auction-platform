@@ -124,6 +124,9 @@ interface PropertyData {
 }
 
 
+// Check if we're in static mode (no API)
+const IS_STATIC_MODE = process.env.NEXT_PUBLIC_STATIC_MODE === "true";
+
 export default function PropertyDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -292,16 +295,19 @@ Cordialement`
         >
           Apercu
         </button>
-        <button
-          onClick={() => setActiveTab("analysis")}
-          className={`px-4 py-2 font-medium text-sm border-b-2 -mb-px transition-colors ${
-            activeTab === "analysis"
-              ? "text-primary-600 border-primary-600"
-              : "text-gray-500 border-transparent hover:text-gray-700"
-          }`}
-        >
-          Analyse de prix
-        </button>
+        {/* Hide analysis tab in static mode - requires API */}
+        {!IS_STATIC_MODE && (
+          <button
+            onClick={() => setActiveTab("analysis")}
+            className={`px-4 py-2 font-medium text-sm border-b-2 -mb-px transition-colors ${
+              activeTab === "analysis"
+                ? "text-primary-600 border-primary-600"
+                : "text-gray-500 border-transparent hover:text-gray-700"
+            }`}
+          >
+            Analyse de prix
+          </button>
+        )}
         <button
           onClick={() => setActiveTab("documents")}
           className={`px-4 py-2 font-medium text-sm border-b-2 -mb-px transition-colors ${
@@ -547,8 +553,8 @@ Cordialement`
               </div>
             )}
 
-            {/* Quick analysis summary */}
-            {combined && combined.discount_percent != null && combined.discount_percent > 0 && (
+            {/* Quick analysis summary - only in API mode */}
+            {!IS_STATIC_MODE && combined && combined.discount_percent != null && combined.discount_percent > 0 && (
               <div className={`rounded-xl p-6 border ${
                 combined.discount_percent >= 30
                   ? "bg-green-50 border-green-200"
@@ -593,8 +599,8 @@ Cordialement`
         </div>
       )}
 
-      {/* Analysis Tab */}
-      {activeTab === "analysis" && (
+      {/* Analysis Tab - only in API mode */}
+      {!IS_STATIC_MODE && activeTab === "analysis" && (
         <div className="space-y-6">
           {isLoadingAnalysis ? (
             <div className="bg-white rounded-xl p-8 text-center">
