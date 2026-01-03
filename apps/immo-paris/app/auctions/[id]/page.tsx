@@ -7,6 +7,7 @@ import {
   formatCurrency,
 } from "@repo/ui";
 import { OpportunityLevel } from "@repo/types";
+import { useProperty } from "@repo/api-client";
 import { APP_CONFIG } from "@/lib/config";
 import {
   ArrowLeft,
@@ -128,36 +129,22 @@ export default function PropertyDetailPage() {
   const router = useRouter();
   const propertyId = params.id as string;
 
-  const [property, setProperty] = useState<PropertyData | null>(null);
+  // Use the hook that supports both API and static modes
+  const { data: propertyData, isLoading } = useProperty(propertyId);
+  const property = propertyData as PropertyData | null;
+
   const [analysisData, setAnalysisData] = useState<MultiSourceAnalysis | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
   const [expandedSource, setExpandedSource] = useState<string | null>("dvf");
   const [activeTab, setActiveTab] = useState<"overview" | "analysis" | "documents">("overview");
 
-  // Fetch property data
+  // Fetch multi-source analysis (only in API mode)
   useEffect(() => {
-    async function fetchProperty() {
-      setIsLoading(true);
-      try {
-        const res = await fetch(`/api/properties/${propertyId}`);
-        if (res.ok) {
-          const data = await res.json();
-          setProperty(data);
-        }
-      } catch (err) {
-        console.error("Failed to fetch property:", err);
-      } finally {
-        setIsLoading(false);
-      }
+    // Skip analysis fetch in static mode
+    if (process.env.NEXT_PUBLIC_STATIC_MODE === "true") {
+      return;
     }
-    if (propertyId) {
-      fetchProperty();
-    }
-  }, [propertyId]);
 
-  // Fetch multi-source analysis
-  useEffect(() => {
     async function fetchAnalysis() {
       setIsLoadingAnalysis(true);
       try {
