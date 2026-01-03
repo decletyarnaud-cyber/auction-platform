@@ -1,0 +1,31 @@
+{
+  "generatedAt": "2026-01-03T15:12:22.197103Z",
+  "total": 37,
+  "upcoming": 31,
+  "opportunities": 25,
+  "averageDiscount": 73.1,
+  "averagePricePerSqm": 1629.0,
+  "byCity": {
+    "Unknown": 5,
+    "Carcès": 1,
+    "Marseille 14ème": 2,
+    "Marseille 9ème": 2,
+    "Toulon": 7,
+    "Aix en Provence": 3,
+    "Marseille 13ème": 2,
+    "Marseille 15ème": 3,
+    "Marseille 8ème": 2,
+    "Marseille 3ème": 4,
+    "La Seyne-sur-Mer": 1,
+    "Miramas": 1,
+    "Marseille 1ème": 1,
+    "Marseille 10ème": 1,
+    "Marseille 7ème": 1,
+    "Marseille 5ème": 1
+  },
+  "byPropertyType": {
+    "house": 7,
+    "apartment": 25,
+    "other": 5
+  }
+}
