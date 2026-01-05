@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { MetricCardWithTrend, EmptyState, formatCurrency } from "@repo/ui";
+import { getStaticVisitsCalendar } from "@repo/api-client";
 import { APP_CONFIG } from "@/lib/config";
 import {
   Calendar,
@@ -54,16 +55,14 @@ export default function CalendarPage() {
   const [visitsData, setVisitsData] = useState<VisitsCalendarData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch visits calendar data
+  // Fetch visits calendar data - filtered by Paris departments
   useEffect(() => {
     async function fetchVisits() {
       setIsLoading(true);
       try {
-        const res = await fetch("/api/properties/visits/calendar");
-        if (res.ok) {
-          const data = await res.json();
-          setVisitsData(data);
-        }
+        // Use static data with department filtering for Paris/IDF
+        const data = await getStaticVisitsCalendar(APP_CONFIG.departments);
+        setVisitsData(data);
       } catch (err) {
         console.error("Failed to fetch visits:", err);
       } finally {

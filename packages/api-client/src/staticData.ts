@@ -401,3 +401,96 @@ export async function getStaticDistant(
     totalPages: Math.ceil(filtered.length / limit),
   };
 }
+
+/**
+ * Visit data structure for calendar
+ */
+interface Visit {
+  id: string;
+  city: string;
+  address: string;
+  price: number;
+  surface: number | null;
+  propertyType: string;
+  auctionDate: string;
+  url?: string;
+}
+
+interface CalendarDay {
+  date: string;
+  count: number;
+  visits: Visit[];
+}
+
+interface VisitsCalendarData {
+  total: number;
+  days: number;
+  calendar: CalendarDay[];
+}
+
+/**
+ * Get visits calendar data from static auctions
+ * Filters by departments and builds calendar structure
+ */
+export async function getStaticVisitsCalendar(
+  departments?: string[]
+): Promise<VisitsCalendarData> {
+  const auctions = await fetchStaticAuctions();
+
+  // Filter by departments if provided
+  let filtered = auctions;
+  if (departments && departments.length > 0) {
+    filtered = auctions.filter((a) => departments.includes(a.department));
+  }
+
+  // Filter only auctions with visit dates
+  const auctionsWithVisits = filtered.filter(
+    (a) => a.visitDates && a.visitDates.length > 0
+  );
+
+  // Build visits by date
+  const visitsByDate: Record<string, Visit[]> = {};
+
+  for (const auction of auctionsWithVisits) {
+    for (const visitDate of auction.visitDates || []) {
+      // Normalize date string to YYYY-MM-DD
+      let dateStr = visitDate;
+      if (visitDate.includes("T")) {
+        dateStr = visitDate.split("T")[0];
+      }
+
+      if (!visitsByDate[dateStr]) {
+        visitsByDate[dateStr] = [];
+      }
+
+      visitsByDate[dateStr].push({
+        id: auction.id,
+        city: auction.city,
+        address: auction.address,
+        price: auction.startingPrice || 0,
+        surface: auction.surface || null,
+        propertyType: auction.propertyType,
+        auctionDate: auction.auctionDate || "",
+        url: auction.url,
+      });
+    }
+  }
+
+  // Convert to calendar array sorted by date
+  const calendar: CalendarDay[] = Object.entries(visitsByDate)
+    .map(([date, visits]) => ({
+      date,
+      count: visits.length,
+      visits,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  // Calculate totals
+  const total = calendar.reduce((sum, day) => sum + day.count, 0);
+
+  return {
+    total,
+    days: calendar.length,
+    calendar,
+  };
+}

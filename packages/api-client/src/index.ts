@@ -3,7 +3,7 @@ export { initApiClient, getApiClient, ApiError } from "./client";
 export type { ApiClientConfig } from "./client";
 
 // Static Data (for Vercel serverless deployment)
-export { isStaticMode } from "./staticData";
+export { isStaticMode, getStaticVisitsCalendar } from "./staticData";
 
 // Provider
 export { ApiProvider } from "./provider";
