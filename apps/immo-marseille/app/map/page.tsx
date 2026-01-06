@@ -1,15 +1,18 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useProperties } from "@repo/api-client";
 import { PropertyMap, formatCurrency } from "@repo/ui";
 import { APP_CONFIG } from "@/lib/config";
 import { type PropertyAuction, type PropertyFilters } from "@repo/types";
-import { Maximize2, Minimize2, X, Navigation } from "lucide-react";
+import { Maximize2, Minimize2, X, Navigation, ExternalLink, Euro, Home, Calendar, ArrowRight } from "lucide-react";
 
 const DEFAULT_FILTERS: PropertyFilters = {};
 
 export default function MapPage() {
+  const router = useRouter();
+
   // Load Leaflet CSS dynamically
   useEffect(() => {
     const link = document.createElement("link");
@@ -54,10 +57,18 @@ export default function MapPage() {
     return patterns.some(p => courtLower.includes(p));
   }, []);
 
-  const propertiesWithCoords = useMemo(
-    () => properties.filter((p) => p.latitude && p.longitude && isCourtAllowed(p.court)),
-    [properties, isCourtAllowed]
-  );
+  const propertiesWithCoords = useMemo(() => {
+    // Filter by department first (Marseille: 13, 83)
+    const allowedDepts = APP_CONFIG.departments || [];
+    let filtered = properties;
+
+    if (allowedDepts.length > 0) {
+      filtered = properties.filter((p) => allowedDepts.includes(p.department));
+    }
+
+    // Then filter by coords and court
+    return filtered.filter((p) => p.latitude && p.longitude && isCourtAllowed(p.court));
+  }, [properties, isCourtAllowed]);
 
   // Handlers
   const toggleFullscreen = () => {
@@ -248,6 +259,72 @@ export default function MapPage() {
               )}
             </div>
           </div>
+
+          {/* Selected property panel */}
+          {selectedProperty && (
+            <div className="absolute top-4 left-4 bg-white rounded-xl shadow-xl border border-gray-200 w-80 z-[1000] animate-slide-in-from-left">
+              <div className="p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900 line-clamp-2">{selectedProperty.address}</h3>
+                    <p className="text-sm text-gray-500">{selectedProperty.city}</p>
+                  </div>
+                  <button
+                    onClick={() => setSelectedProperty(null)}
+                    className="p-1 hover:bg-gray-100 rounded-full"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500 flex items-center gap-1">
+                      <Euro size={14} />
+                      Prix
+                    </span>
+                    <span className="font-semibold">
+                      {formatCurrency(selectedProperty.startingPrice, APP_CONFIG.locale, APP_CONFIG.currency)}
+                    </span>
+                  </div>
+                  {selectedProperty.surface && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500 flex items-center gap-1">
+                        <Home size={14} />
+                        Surface
+                      </span>
+                      <span>{selectedProperty.surface} m²</span>
+                    </div>
+                  )}
+                  {selectedProperty.discountPercent && selectedProperty.discountPercent > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">Décote</span>
+                      <span className="font-semibold text-green-600">
+                        -{selectedProperty.discountPercent.toFixed(0)}%
+                      </span>
+                    </div>
+                  )}
+                  {selectedProperty.auctionDate && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500 flex items-center gap-1">
+                        <Calendar size={14} />
+                        Enchère
+                      </span>
+                      <span>{new Date(selectedProperty.auctionDate).toLocaleDateString(APP_CONFIG.locale)}</span>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => router.push(`/auctions/${selectedProperty.id}`)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+                >
+                  Voir l'analyse détaillée
+                  <ArrowRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

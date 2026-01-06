@@ -106,6 +106,12 @@ export default function OpportunitiesPage() {
 
     let result = data.data;
 
+    // Filter by department (Marseille: 13, 83)
+    const allowedDepts = APP_CONFIG.departments || [];
+    if (allowedDepts.length > 0) {
+      result = result.filter((a) => allowedDepts.includes(a.department));
+    }
+
     // Filter by tab
     if (activeTab !== "all") {
       result = result.filter((a) => a.opportunityLevel === activeTab);
