@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-01-25T06:59:02.478171Z",
+  "generatedAt": "2026-02-01T07:51:05.600408Z",
   "region": "marseille",
   "departments": [
     "13",
@@ -1174,7 +1174,7 @@
       "discountPercent": 93.03359129132033,
       "opportunityScore": 90.0,
       "opportunityLevel": "exceptional",
-      "status": "upcoming",
+      "status": "completed",
       "createdAt": "2025-12-29 17:22:06",
       "updatedAt": "2025-12-31 09:57:03",
       "address": "3, rue GautierQuartier Saint-Mauron",
