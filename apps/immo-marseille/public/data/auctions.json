@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-02-08T07:02:19.192535Z",
+  "generatedAt": "2026-02-15T07:00:56.580168Z",
   "region": "marseille",
   "departments": [
     "13",
@@ -1459,7 +1459,7 @@
       "discountPercent": 81.2413710306741,
       "opportunityScore": 90.0,
       "opportunityLevel": "exceptional",
-      "status": "upcoming",
+      "status": "completed",
       "createdAt": "2025-12-29 17:22:06",
       "updatedAt": "2025-12-31 09:57:03",
       "address": "40, rue Papety",
@@ -1500,7 +1500,7 @@
       "discountPercent": 84.25536791582041,
       "opportunityScore": 90.0,
       "opportunityLevel": "exceptional",
-      "status": "upcoming",
+      "status": "completed",
       "createdAt": "2025-12-29 17:22:06",
       "updatedAt": "2025-12-31 09:57:03",
       "address": "15, rue Saint Savournin",
