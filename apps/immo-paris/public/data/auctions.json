@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-02-15T07:00:56.575757Z",
+  "generatedAt": "2026-02-22T06:59:23.559495Z",
   "region": "paris",
   "departments": [
     "75",
@@ -2171,7 +2171,7 @@
       "discountPercent": 38.131865005804826,
       "opportunityScore": 80.0,
       "opportunityLevel": "excellent",
-      "status": "upcoming",
+      "status": "completed",
       "createdAt": "2025-12-29 19:31:53",
       "updatedAt": "2025-12-29 19:36:03",
       "address": "3, rue Édouard Vaillant",

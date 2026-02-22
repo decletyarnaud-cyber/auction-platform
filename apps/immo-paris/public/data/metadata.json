@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-02-15T07:00:56.578169Z",
+  "lastUpdated": "2026-02-22T06:59:23.561931Z",
   "region": "paris",
   "departments": [
     "75",
@@ -12,5 +12,5 @@
     "95"
   ],
   "totalAuctions": 55,
-  "upcomingAuctions": 2
+  "upcomingAuctions": 1
 }
