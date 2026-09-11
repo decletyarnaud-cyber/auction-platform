@@ -1,0 +1,185 @@
+# rendered by the-steward 0.2.73 — do not hand-edit; re-render to change
+name: steward
+
+on:
+  schedule:
+    - cron: "57 2 * * *"
+  workflow_dispatch:
+    inputs:
+      review:
+        description: "Start your morning review (digest in the run summary; drive it from your phone if a claude.ai token is set)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: steward
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.review) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      has_signals: ${{ steps.watch.outputs.has_signals }}
+      matrix: ${{ steps.watch.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: install the Steward
+        run: |
+          V="0.2.73"; WHY="the rendered pin — no steward-state branch yet"
+          if git fetch -q origin steward-state 2>/dev/null; then
+            P="$(git show FETCH_HEAD:pin.txt 2>/dev/null | tr -d '[:space:]')"
+            case "$P" in
+              [0-9]*.[0-9]*.[0-9]*) V="$P"; WHY="steward-state/pin.txt — the runner follows the machine";;
+              *) WHY="the rendered pin — no usable pin.txt on steward-state yet";;
+            esac
+          fi
+          echo "installing the-steward==$V ($WHY)"
+          for i in $(seq 1 6); do
+            pipx install --quiet "the-steward==$V" && exit 0
+            echo "install attempt $i/6 failed (pypi edge propagation?) — retrying in 60s"; sleep 60
+          done
+          echo "::error::could not install the-steward==$V after 6 attempts over 5 minutes. If this version was published minutes ago it is PyPI edge propagation — re-run this job. If it persists, the version does not exist on PyPI: check steward-state/pin.txt, or re-render with a released version (steward track <repo> --mode gha)."
+          exit 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: watch
+        id: watch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STEWARD_SIGNAL_SOURCE: "fixture"
+          STEWARD_FANOUT_CAP: "5"
+        run: steward gha-watch
+
+  execute:
+    needs: watch
+    if: needs.watch.outputs.has_signals == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.watch.outputs.matrix) }}
+    steps:
+      - name: check inference credential
+        env:
+          INFERROUTE_API_KEY: ${{ secrets.INFERROUTE_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+        run: |
+          if [ -n "$INFERROUTE_API_KEY" ]; then
+            echo "inference credential present (inferroute, economy lane)"; exit 0
+          fi
+          case "$ANTHROPIC_API_KEY" in
+            inf_*) if [ -z "$ANTHROPIC_BASE_URL" ]; then
+                     echo "::error::ANTHROPIC_API_KEY holds an inferroute key but ANTHROPIC_BASE_URL is unset — claude would send it to api.anthropic.com and fail at model time. Set ONE secret instead: gh secret set INFERROUTE_API_KEY -R decletyarnaud-cyber/auction-platform"
+                     exit 1
+                   fi ;;
+          esac
+          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::No inference credential. With an inferroute account (no Anthropic key needed): gh secret set INFERROUTE_API_KEY -R decletyarnaud-cyber/auction-platform  (or GitHub → Settings → Secrets → Actions → INFERROUTE_API_KEY). With a Claude subscription: run 'claude setup-token' in the FOREGROUND, then: gh secret set CLAUDE_CODE_OAUTH_TOKEN -R decletyarnaud-cyber/auction-platform"
+            exit 1
+          fi
+          echo "inference credential present"
+      - uses: actions/checkout@v4
+      - name: install the Steward
+        run: |
+          V="0.2.73"; WHY="the rendered pin — no steward-state branch yet"
+          if git fetch -q origin steward-state 2>/dev/null; then
+            P="$(git show FETCH_HEAD:pin.txt 2>/dev/null | tr -d '[:space:]')"
+            case "$P" in
+              [0-9]*.[0-9]*.[0-9]*) V="$P"; WHY="steward-state/pin.txt — the runner follows the machine";;
+              *) WHY="the rendered pin — no usable pin.txt on steward-state yet";;
+            esac
+          fi
+          echo "installing the-steward==$V ($WHY)"
+          for i in $(seq 1 6); do
+            pipx install --quiet "the-steward==$V" && exit 0
+            echo "install attempt $i/6 failed (pypi edge propagation?) — retrying in 60s"; sleep 60
+          done
+          echo "::error::could not install the-steward==$V after 6 attempts over 5 minutes. If this version was published minutes ago it is PyPI edge propagation — re-run this job. If it persists, the version does not exist on PyPI: check steward-state/pin.txt, or re-render with a released version (steward track <repo> --mode gha)."
+          exit 1
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv python install 3.11
+      - run: uv sync
+      - run: echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+      - name: cache the claude CLI download
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-claude-code-v1
+      - name: install claude CLI
+        run: npm install -g @anthropic-ai/claude-code
+      - name: install the inferroute launcher
+        run: for i in 1 2 3; do pipx install --quiet "inferroute==0.5.1" && break || { [ $i = 3 ] && exit 1; sleep 30; }; done
+      - name: execute
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          INFERROUTE_API_KEY: ${{ secrets.INFERROUTE_API_KEY }}
+          STEWARD_MODEL: "kimi-k2.6"
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          ANTHROPIC_CUSTOM_HEADERS: "x-inferroute-run-id: gha-${{ github.run_id }}-${{ matrix.sig }}\nx-steward-version: 0.2.73"
+          STEWARD_SIG: ${{ matrix.sig }}
+          STEWARD_ALIASES: ${{ matrix.aliases }}
+          STEWARD_VARIANTS: ${{ matrix.variants }}
+          STEWARD_SIGNATURE: ${{ matrix.signature }}
+          STEWARD_SAMPLE: ${{ matrix.sample }}
+          STEWARD_TEST_CMD: ""
+          STEWARD_AUTO_FIX: "1"
+          ST_CLAUDE_ARGS: "--dangerously-skip-permissions"
+        run: steward gha-execute
+
+  review:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.review }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: install the Steward
+        run: |
+          V="0.2.73"; WHY="the rendered pin — no steward-state branch yet"
+          if git fetch -q origin steward-state 2>/dev/null; then
+            P="$(git show FETCH_HEAD:pin.txt 2>/dev/null | tr -d '[:space:]')"
+            case "$P" in
+              [0-9]*.[0-9]*.[0-9]*) V="$P"; WHY="steward-state/pin.txt — the runner follows the machine";;
+              *) WHY="the rendered pin — no usable pin.txt on steward-state yet";;
+            esac
+          fi
+          echo "installing the-steward==$V ($WHY)"
+          for i in $(seq 1 6); do
+            pipx install --quiet "the-steward==$V" && exit 0
+            echo "install attempt $i/6 failed (pypi edge propagation?) — retrying in 60s"; sleep 60
+          done
+          echo "::error::could not install the-steward==$V after 6 attempts over 5 minutes. If this version was published minutes ago it is PyPI edge propagation — re-run this job. If it persists, the version does not exist on PyPI: check steward-state/pin.txt, or re-render with a released version (steward track <repo> --mode gha)."
+          exit 1
+      - name: cache the claude CLI download
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-claude-code-v1
+      - name: install claude CLI
+        run: npm install -g @anthropic-ai/claude-code
+      - name: review
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          INFERROUTE_API_KEY: ${{ secrets.INFERROUTE_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          STEWARD_RC_MODEL: "sonnet"
+          STEWARD_RC_TIMEOUT: "3600"
+          ST_CLAUDE_ARGS: "--dangerously-skip-permissions"
+        run: steward gha-review
